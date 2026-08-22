@@ -1,0 +1,10 @@
+
+data/Reviews.csv
+
+data/Reviews.csv
+
+*.csv
+
+__pycache__/
+
+*.pyc

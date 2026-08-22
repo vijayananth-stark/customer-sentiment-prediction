@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Customer Sentiment Analyzer</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .container {
+            width: 90%;
+            max-width: 700px;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #777;
+            margin-bottom: 30px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 160px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            resize: none;
+            font-size: 16px;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: #667eea;
+            color: white;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #5568d8;
+        }
+
+        #result {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .sentiment {
+            font-size: 25px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .confidence {
+            margin-top: 15px;
+        }
+
+        .bar {
+            height: 12px;
+            background: #eee;
+            border-radius: 10px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+    <div class="container">
+
+        <h1>Customer Sentiment Analyzer</h1>
+
+        <p class="subtitle">
+            Analyze customer reviews using NLP & Machine Learning
+        </p>
+
+
+        <textarea
+            id="review"
+            placeholder="Enter your customer review here..."
+        ></textarea>
+
+
+        <button onclick="predictSentiment()">
+            Predict Sentiment
+        </button>
+
+
+        <div id="result">
+
+            <div class="sentiment" id="sentiment">
+            </div>
+
+            <div class="confidence">
+
+                <p>
+                    Negative:
+                    <span id="negative-value">0%</span>
+                </p>
+
+                <div class="bar">
+                    <div
+                        class="bar-fill"
+                        id="negative-bar">
+                    </div>
+                </div>
+
+
+                <p>
+                    Neutral:
+                    <span id="neutral-value">0%</span>
+                </p>
+
+                <div class="bar">
+                    <div
+                        class="bar-fill"
+                        id="neutral-bar">
+                    </div>
+                </div>
+
+
+                <p>
+                    Positive:
+                    <span id="positive-value">0%</span>
+                </p>
+
+                <div class="bar">
+                    <div
+                        class="bar-fill"
+                        id="positive-bar">
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+<script>
+
+async function predictSentiment() {
+
+    const review =
+        document.getElementById("review").value;
+
+    if (!review.trim()) {
+
+        alert("Please enter a review.");
+
+        return;
+    }
+
+
+    const response = await fetch(
+        "/predict",
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                review: review
+            })
+        }
+    );
+
+
+    const data = await response.json();
+
+
+    document.getElementById("result").style.display = "block";
+
+
+    document.getElementById("sentiment").innerText =
+        data.sentiment;
+
+
+    document.getElementById("negative-value").innerText =
+        data.confidence.Negative + "%";
+
+    document.getElementById("neutral-value").innerText =
+        data.confidence.Neutral + "%";
+
+    document.getElementById("positive-value").innerText =
+        data.confidence.Positive + "%";
+
+
+    document.getElementById("negative-bar").style.width =
+        data.confidence.Negative + "%";
+
+    document.getElementById("neutral-bar").style.width =
+        data.confidence.Neutral + "%";
+
+    document.getElementById("positive-bar").style.width =
+        data.confidence.Positive + "%";
+
+}
+
+</script>
+
+
+</body>
+
+</html>
