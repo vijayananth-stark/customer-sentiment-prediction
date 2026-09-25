@@ -1,114 +1,189 @@
+```python
 from pathlib import Path
 
 import joblib
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+import streamlit as st
 
-from app.preprocessing import preprocess_text
+from preprocessing import preprocess_text
 
 
-# ---------------------------------------------------------
+# =========================================================
 # PROJECT PATHS
-# ---------------------------------------------------------
+# =========================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 MODEL_DIR = BASE_DIR / "model"
-TEMPLATE_DIR = BASE_DIR / "app" / "templates"
 
 
-# ---------------------------------------------------------
-# FASTAPI APP
-# ---------------------------------------------------------
+# =========================================================
+# PAGE CONFIGURATION
+# =========================================================
 
-app = FastAPI(
-    title="Customer Sentiment Prediction API",
-    description="NLP-based Customer Sentiment Prediction",
-    version="1.0"
+st.set_page_config(
+    page_title="Customer Sentiment Prediction",
+    page_icon="😊",
+    layout="centered"
 )
 
 
-# ---------------------------------------------------------
-# HTML TEMPLATES
-# ---------------------------------------------------------
+# =========================================================
+# TITLE
+# =========================================================
 
-templates = Jinja2Templates(
-    directory=str(TEMPLATE_DIR)
+st.title("😊 Customer Sentiment Prediction")
+
+st.write(
+    "Enter a customer review below and the machine learning "
+    "model will predict the sentiment."
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # LOAD MODEL
-# ---------------------------------------------------------
+# =========================================================
 
-model = joblib.load(
-    MODEL_DIR / "sentiment_model.pkl"
+@st.cache_resource
+def load_models():
+
+    model_path = MODEL_DIR / "sentiment_model.pkl"
+    vectorizer_path = MODEL_DIR / "tfidf_vectorizer.pkl"
+
+    model = joblib.load(model_path)
+    vectorizer = joblib.load(vectorizer_path)
+
+    return model, vectorizer
+
+
+try:
+
+    model, vectorizer = load_models()
+
+except Exception as e:
+
+    st.error("Unable to load the ML model.")
+
+    st.code(str(e))
+
+    st.stop()
+
+
+# =========================================================
+# REVIEW INPUT
+# =========================================================
+
+review = st.text_area(
+    "Enter Customer Review",
+    placeholder="Example: The product quality is excellent and delivery was fast.",
+    height=150
 )
 
-vectorizer = joblib.load(
-    MODEL_DIR / "tfidf_vectorizer.pkl"
-)
 
+# =========================================================
+# PREDICTION BUTTON
+# =========================================================
 
-# ---------------------------------------------------------
-# REQUEST MODEL
-# ---------------------------------------------------------
+if st.button("🔍 Predict Sentiment", use_container_width=True):
 
-class ReviewRequest(BaseModel):
-    review: str
+    if not review.strip():
 
+        st.warning("Please enter a customer review.")
 
-# ---------------------------------------------------------
-# HOME PAGE
-# ---------------------------------------------------------
+    else:
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
+        try:
 
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html"
-    )
+            # ---------------------------------------------
+            # PREPROCESS TEXT
+            # ---------------------------------------------
 
+            processed_review = preprocess_text(review)
 
-# ---------------------------------------------------------
-# PREDICTION
-# ---------------------------------------------------------
+            # ---------------------------------------------
+            # TF-IDF TRANSFORMATION
+            # ---------------------------------------------
 
-@app.post("/predict")
-async def predict_sentiment(request: ReviewRequest):
+            review_vector = vectorizer.transform(
+                [processed_review]
+            )
 
-    processed_review = preprocess_text(
-        request.review
-    )
+            # ---------------------------------------------
+            # PREDICTION
+            # ---------------------------------------------
 
-    review_vector = vectorizer.transform(
-        [processed_review]
-    )
+            prediction = model.predict(
+                review_vector
+            )[0]
 
-    prediction = model.predict(
-        review_vector
-    )[0]
+            # ---------------------------------------------
+            # PROBABILITY
+            # ---------------------------------------------
 
-    probabilities = model.predict_proba(
-        review_vector
-    )[0]
+            if hasattr(model, "predict_proba"):
 
-    classes = model.classes_
+                probabilities = model.predict_proba(
+                    review_vector
+                )[0]
 
-    confidence = {
-        class_name: round(float(prob) * 100, 2)
-        for class_name, prob in zip(
-            classes,
-            probabilities
-        )
-    }
+                classes = model.classes_
 
-    return {
-        "original_review": request.review,
-        "processed_review": processed_review,
-        "sentiment": prediction,
-        "confidence": confidence
-    }
+                confidence = {
+                    str(class_name): round(
+                        float(prob) * 100,
+                        2
+                    )
+                    for class_name, prob in zip(
+                        classes,
+                        probabilities
+                    )
+                }
+
+            else:
+
+                confidence = {}
+
+            # =================================================
+            # DISPLAY RESULT
+            # =================================================
+
+            st.subheader("Prediction Result")
+
+            st.success(
+                f"Predicted Sentiment: {prediction}"
+            )
+
+            # ---------------------------------------------
+            # CONFIDENCE
+            # ---------------------------------------------
+
+            if confidence:
+
+                st.subheader("Confidence")
+
+                for class_name, probability in confidence.items():
+
+                    st.write(
+                        f"**{class_name}: {probability}%**"
+                    )
+
+                    st.progress(
+                        min(int(probability), 100)
+                    )
+
+            # ---------------------------------------------
+            # PROCESSED REVIEW
+            # ---------------------------------------------
+
+            with st.expander("View Processed Review"):
+
+                st.write(processed_review)
+
+        except Exception as e:
+
+            st.error(
+                "An error occurred during prediction."
+            )
+
+            st.code(str(e))
+```
+s
